@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
     env.VITE_APP_DESCRIPTION || 'Clean and simple tech job finder for Thailand and global remote roles.'
 
   return {
+    base: './',
     plugins: [
       react(),
       {
