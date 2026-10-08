@@ -7,7 +7,7 @@ import {
   Briefcase, 
   Building2, 
   ExternalLink, 
-  Bookmark, 
+  Heart, 
   Scale, 
   CheckCircle, 
   Gift, 
@@ -17,7 +17,9 @@ import {
   Users,
   Navigation,
   Compass,
-  Map
+  Map,
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { getJobLocationInfo, getJobCoordinates } from '../utils/locationUtils';
 
@@ -29,7 +31,8 @@ export function JobDetailModal({
   isBookmarked, 
   onToggleBookmark, 
   isCompared, 
-  onToggleCompare 
+  onToggleCompare,
+  onDeleteCustomJob
 }) {
   const [copied, setCopied] = useState(false);
   const [showApplySuccess, setShowApplySuccess] = useState(false);
@@ -142,6 +145,15 @@ export function JobDetailModal({
                 <span className="modal-posted-time">{job.postedAt}</span>
                 <span className="modal-meta-dot">•</span>
                 <span className="modal-applicants"><Users size={12} /> {job.applicantsCount} Applicants</span>
+                {job.isCustomImport && (
+                  <>
+                    <span className="modal-meta-dot">•</span>
+                    <span className="modal-custom-badge">
+                      <Sparkles size={11} />
+                      <span>Custom Import</span>
+                    </span>
+                  </>
+                )}
               </div>
               <h2 className="modal-job-title">{job.title}</h2>
             </div>
@@ -360,12 +372,31 @@ export function JobDetailModal({
         <div className="modal-footer-actions">
           <div className="modal-secondary-buttons">
             <button 
-              className={`btn btn-secondary ${isBookmarked ? 'active' : ''}`}
+              className={`btn btn-secondary ${isBookmarked ? 'btn-fav-active' : ''}`}
               onClick={() => onToggleBookmark(job)}
+              title={isBookmarked ? 'Remove from favorites' : 'Add to favorites'}
             >
-              <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
-              <span>{isBookmarked ? 'Saved in Bookmarks' : 'Save Job'}</span>
+              <Heart 
+                size={16} 
+                fill={isBookmarked ? '#f43f5e' : 'none'} 
+                color={isBookmarked ? '#f43f5e' : 'currentColor'} 
+              />
+              <span>{isBookmarked ? 'In Favorites' : 'Add to Favorites'}</span>
             </button>
+
+            {job.isCustomImport && onDeleteCustomJob && (
+              <button 
+                className="btn btn-secondary btn-trash-custom-modal"
+                onClick={() => {
+                  onDeleteCustomJob(job.id);
+                  onClose();
+                }}
+                title="Delete this imported job"
+              >
+                <Trash2 size={15} />
+                <span>Delete Job</span>
+              </button>
+            )}
 
             <button 
               className={`btn btn-secondary ${isCompared ? 'active' : ''}`}

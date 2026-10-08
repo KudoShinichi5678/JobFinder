@@ -9,6 +9,7 @@ import { LiveSyncModal } from './components/LiveSyncModal';
 import { ComparisonDrawer } from './components/ComparisonDrawer';
 import { BookmarksDrawer } from './components/BookmarksDrawer';
 import { AnalyticsModal } from './components/AnalyticsModal';
+import { ImportJobModal } from './components/ImportJobModal';
 import { INITIAL_JOBS } from './data/mockJobs';
 import { 
   DEFAULT_DESIRED_LOCATION, 
@@ -23,7 +24,9 @@ import {
   ArrowUp,
   LayoutGrid,
   List,
-  ArrowUpDown
+  ArrowUpDown,
+  Heart,
+  Sparkles
 } from 'lucide-react';
 
 const DEFAULT_FILTERS = {
@@ -40,11 +43,27 @@ const DEFAULT_FILTERS = {
 };
 
 export default function App() {
-  const [jobs, setJobs] = useState(INITIAL_JOBS);
+  // Custom user-imported jobs with localStorage persistence
+  const [customJobs, setCustomJobs] = useState(() => {
+    try {
+      const stored = localStorage.getItem('jobfinder_custom_jobs');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // Combine custom imported jobs (displayed at top) with built-in feeds
+  const jobs = useMemo(() => {
+    return [...customJobs, ...INITIAL_JOBS];
+  }, [customJobs]);
+
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [selectedJob, setSelectedJob] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'salary' | 'applicants' | 'nearest'
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Desired Location state with localStorage persistence
   const [desiredLocation, setDesiredLocation] = useState(() => {
@@ -86,6 +105,13 @@ export default function App() {
       localStorage.setItem('jobradar_saved_jobs', JSON.stringify(savedJobs));
     } catch (e) {}
   }, [savedJobs]);
+
+  // Save custom imported jobs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('jobfinder_custom_jobs', JSON.stringify(customJobs));
+    } catch (e) {}
+  }, [customJobs]);
 
   // Save desired location to localStorage
   useEffect(() => {
@@ -227,6 +253,28 @@ export default function App() {
     showToast('Comparison list cleared');
   };
 
+  // Add imported job
+  const handleJobImported = (newJob) => {
+    setCustomJobs(prev => [newJob, ...prev]);
+    setSelectedJob(newJob);
+    showToast(`🎉 "${newJob.title}" at ${newJob.company} imported successfully!`, 'success');
+  };
+
+  // Delete custom imported job
+  const handleDeleteCustomJob = (jobId) => {
+    setCustomJobs(prev => prev.filter(j => j.id !== jobId));
+    setSavedJobs(prev => prev.filter(j => j.id !== jobId));
+    setCompareJobs(prev => prev.filter(j => j.id !== jobId));
+    if (selectedJob?.id === jobId) setSelectedJob(null);
+    showToast('Imported job removed', 'info');
+  };
+
+  // Update application status for a favorited job
+  const handleUpdateJobStatus = (jobId, status) => {
+    setSavedJobs(prev => prev.map(j => j.id === jobId ? { ...j, applicationStatus: status } : j));
+    showToast(`Status updated to ${status}`, 'info');
+  };
+
   // Filter & Sort evaluation logic with Desired Location integration
   const { matchingJobs, displayedJobs, locationMatchingCount } = useMemo(() => {
     // 1. Calculate how many total jobs match the desired location radius
@@ -303,6 +351,13 @@ export default function App() {
         }
       }
 
+      // Favorites Only Filter
+      if (showOnlyFavorites) {
+        if (!savedJobs.some(s => s.id === job.id)) {
+          return false;
+        }
+      }
+
       return true;
     });
 
@@ -332,7 +387,7 @@ export default function App() {
       displayedJobs: sorted,
       locationMatchingCount: locMatches
     };
-  }, [jobs, filters, sortBy, desiredLocation]);
+  }, [jobs, filters, sortBy, desiredLocation, showOnlyFavorites, savedJobs]);
 
   const handleSyncComplete = () => {
     showToast('Feeds synced! Positions refreshed.', 'success');
@@ -361,6 +416,7 @@ export default function App() {
         onOpenLocationModal={() => setIsLocationModalOpen(true)}
         totalJobsCount={jobs.length}
         filteredCount={displayedJobs.length}
+        onOpenImport={() => setIsImportModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -410,6 +466,32 @@ export default function App() {
             </div>
 
             <div className="feed-toolbar-right">
+              {/* Quick Favorites Only Toggle Filter */}
+              <button 
+                type="button"
+                className={`btn-feed-fav-filter ${showOnlyFavorites ? 'active' : ''}`}
+                onClick={() => setShowOnlyFavorites(prev => !prev)}
+                title={showOnlyFavorites ? 'Show all active jobs' : 'Show only favorited jobs'}
+              >
+                <Heart 
+                  size={14} 
+                  fill={showOnlyFavorites ? '#f43f5e' : 'none'} 
+                  color={showOnlyFavorites ? '#f43f5e' : 'currentColor'} 
+                />
+                <span>Favorites{savedJobs.length > 0 ? ` (${savedJobs.length})` : ''}</span>
+              </button>
+
+              {/* Quick Import Job Button */}
+              <button 
+                type="button"
+                className="btn-feed-import"
+                onClick={() => setIsImportModalOpen(true)}
+                title="Import any job from link"
+              >
+                <Sparkles size={14} className="text-cyan" />
+                <span>+ Import Job</span>
+              </button>
+
               {/* Sort Dropdown */}
               <div className="sort-wrap">
                 <ArrowUpDown size={14} className="sort-icon" />
@@ -450,28 +532,59 @@ export default function App() {
           {/* Jobs Feed / Empty State */}
           {displayedJobs.length === 0 ? (
             <div className="empty-state-clean">
-              <SearchX size={44} className="empty-icon" />
-              <h3>No jobs match your selected criteria</h3>
-              <p>
-                {desiredLocation.filterOnlyWithinRadius 
-                  ? `There are no active openings within ${desiredLocation.radiusKm} km of ${desiredLocation.name}. Try expanding the radius or turning off strict location filter.` 
-                  : 'Try clearing your keyword or resetting some criteria to see more positions.'}
-              </p>
-              <div className="empty-actions-row">
-                {desiredLocation.filterOnlyWithinRadius && (
-                  <button 
-                    className="btn-clean-reset" 
-                    onClick={handleToggleFilterRadius}
-                    style={{ background: 'var(--accent-blue)', color: '#fff', borderColor: 'var(--accent-blue)' }}
-                  >
-                    <span>Expand Location Radius</span>
-                  </button>
-                )}
-                <button className="btn-clean-reset" onClick={handleResetFilters}>
-                  <RotateCcw size={14} />
-                  <span>Reset All Filters</span>
-                </button>
-              </div>
+              {showOnlyFavorites ? (
+                <>
+                  <div className="empty-heart-circle">
+                    <Heart size={40} className="text-rose" fill="currentColor" />
+                  </div>
+                  <h3>No favorite jobs yet</h3>
+                  <p>
+                    You haven't added any jobs to your favorites list. Click the heart icon on any job card or import jobs you found online to curate your favorites.
+                  </p>
+                  <div className="empty-actions-row">
+                    <button 
+                      className="btn-clean-reset" 
+                      onClick={() => setShowOnlyFavorites(false)}
+                      style={{ background: 'var(--accent-blue)', color: '#fff', borderColor: 'var(--accent-blue)' }}
+                    >
+                      <span>Show All Jobs</span>
+                    </button>
+                    <button className="btn-clean-reset" onClick={() => setIsImportModalOpen(true)}>
+                      <Sparkles size={14} className="text-cyan" />
+                      <span>+ Import a Job from Link</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SearchX size={44} className="empty-icon" />
+                  <h3>No jobs match your selected criteria</h3>
+                  <p>
+                    {desiredLocation.filterOnlyWithinRadius 
+                      ? `There are no active openings within ${desiredLocation.radiusKm} km of ${desiredLocation.name}. Try expanding the radius or turning off strict location filter.` 
+                      : 'Try clearing your keyword or resetting some criteria to see more positions.'}
+                  </p>
+                  <div className="empty-actions-row">
+                    {desiredLocation.filterOnlyWithinRadius && (
+                      <button 
+                        className="btn-clean-reset" 
+                        onClick={handleToggleFilterRadius}
+                        style={{ background: 'var(--accent-blue)', color: '#fff', borderColor: 'var(--accent-blue)' }}
+                      >
+                        <span>Expand Location Radius</span>
+                      </button>
+                    )}
+                    <button className="btn-clean-reset" onClick={handleResetFilters}>
+                      <RotateCcw size={14} />
+                      <span>Reset All Filters</span>
+                    </button>
+                    <button className="btn-clean-reset" onClick={() => setIsImportModalOpen(true)}>
+                      <Sparkles size={14} className="text-cyan" />
+                      <span>Import Job You Found</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className={viewMode === 'grid' ? 'clean-jobs-grid' : 'clean-jobs-list'}>
@@ -486,6 +599,7 @@ export default function App() {
                   isCompared={compareJobs.some(j => j.id === job.id)}
                   onToggleCompare={handleToggleCompare}
                   onSelectJob={setSelectedJob}
+                  onDeleteCustomJob={handleDeleteCustomJob}
                 />
               ))}
             </div>
@@ -520,6 +634,7 @@ export default function App() {
           onToggleBookmark={handleToggleBookmark}
           isCompared={compareJobs.some(j => j.id === selectedJob.id)}
           onToggleCompare={handleToggleCompare}
+          onDeleteCustomJob={handleDeleteCustomJob}
         />
       )}
 
@@ -560,6 +675,13 @@ export default function App() {
           setIsBookmarksOpen(false);
           setSelectedJob(job);
         }}
+        onUpdateJobStatus={handleUpdateJobStatus}
+      />
+
+      <ImportJobModal 
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onJobImported={handleJobImported}
       />
 
       <AnalyticsModal 

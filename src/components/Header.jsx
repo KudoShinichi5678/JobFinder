@@ -1,12 +1,13 @@
 import React from 'react';
 import { 
   Briefcase, 
-  Bookmark, 
+  Heart, 
   BarChart3, 
   Scale, 
   RefreshCw,
   MapPin,
-  Compass
+  Compass,
+  Sparkles
 } from 'lucide-react';
 
 export function Header({ 
@@ -20,7 +21,8 @@ export function Header({
   desiredLocation,
   onOpenLocationModal,
   totalJobsCount,
-  filteredCount
+  filteredCount,
+  onOpenImport
 }) {
   const isGps = desiredLocation?.type === 'current';
 
@@ -57,8 +59,20 @@ export function Header({
             </button>
           )}
 
+          {/* Import Job from Link Button */}
+          <button 
+            type="button"
+            className="btn btn-header-action btn-header-import"
+            onClick={onOpenImport}
+            title="Import a job from any link or text"
+          >
+            <Sparkles size={15} className="text-cyan" />
+            <span className="btn-label">+ Import Job</span>
+          </button>
+
           {/* Live Sync / Refresh button */}
           <button 
+            type="button"
             className="btn btn-header-action"
             onClick={onOpenSync}
             disabled={isSyncing}
@@ -70,6 +84,7 @@ export function Header({
 
           {/* Market Trends */}
           <button 
+            type="button"
             className="btn btn-header-action"
             onClick={onOpenAnalytics}
             title="View market salary insights"
@@ -80,6 +95,7 @@ export function Header({
 
           {/* Compare */}
           <button 
+            type="button"
             className={`btn btn-header-action ${compareJobsCount > 0 ? 'active' : ''}`}
             onClick={onOpenCompare}
             title="Compare selected jobs"
@@ -89,15 +105,20 @@ export function Header({
             {compareJobsCount > 0 && <span className="header-badge">{compareJobsCount}</span>}
           </button>
 
-          {/* Saved */}
+          {/* Favorites */}
           <button 
-            className={`btn btn-header-action ${savedJobsCount > 0 ? 'active' : ''}`}
+            type="button"
+            className={`btn btn-header-action btn-header-fav ${savedJobsCount > 0 ? 'active' : ''}`}
             onClick={onOpenBookmarks}
-            title="View saved jobs"
+            title="View favorite jobs"
           >
-            <Bookmark size={15} />
-            <span className="btn-label">Saved</span>
-            {savedJobsCount > 0 && <span className="header-badge">{savedJobsCount}</span>}
+            <Heart 
+              size={15} 
+              className={savedJobsCount > 0 ? 'text-rose' : ''} 
+              fill={savedJobsCount > 0 ? '#f43f5e' : 'none'} 
+            />
+            <span className="btn-label">Favorites</span>
+            {savedJobsCount > 0 && <span className="header-badge badge-rose">{savedJobsCount}</span>}
           </button>
 
         </div>

@@ -1,23 +1,26 @@
 import React from 'react';
 import { 
   MapPin, 
-  Bookmark, 
+  Heart, 
   Scale, 
   ExternalLink, 
-  Eye,
-  Navigation,
-  Globe2
+  Eye, 
+  Navigation, 
+  Globe2,
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { getJobLocationInfo } from '../utils/locationUtils';
 
 export function JobCard({ 
   job, 
   desiredLocation,
-  isBookmarked, 
+  isBookmarked, // or isFavorited
   onToggleBookmark, 
   isCompared, 
   onToggleCompare, 
   onSelectJob,
+  onDeleteCustomJob,
   viewMode = 'grid'
 }) {
   const getEmploymentBadge = (type) => {
@@ -60,7 +63,7 @@ export function JobCard({
   // LIST VIEW LAYOUT
   if (viewMode === 'list') {
     return (
-      <div className={`job-list-row ${isCompared ? 'is-compared' : ''}`}>
+      <div className={`job-list-row ${isCompared ? 'is-compared' : ''} ${job.isCustomImport ? 'is-custom-job' : ''}`}>
         <div className="list-col-company">
           <div className="company-logo-box">
             <img 
@@ -80,6 +83,11 @@ export function JobCard({
               <h3 className="job-list-title" onClick={() => onSelectJob(job)}>
                 {job.title}
               </h3>
+              {job.isCustomImport && (
+                <span className="list-custom-badge" title="Imported by you">
+                  ✨ Custom Import
+                </span>
+              )}
               {job.scope === 'foreign' && <span className="list-scope-tag">Global</span>}
             </div>
             <div className="list-company-meta">
@@ -123,11 +131,15 @@ export function JobCard({
           <div className="list-col-actions">
             <button 
               type="button" 
-              className={`btn-icon ${isBookmarked ? 'saved' : ''}`}
+              className={`btn-icon btn-fav-icon ${isBookmarked ? 'favorited' : ''}`}
               onClick={() => onToggleBookmark(job)}
-              title={isBookmarked ? 'Remove bookmark' : 'Bookmark job'}
+              title={isBookmarked ? 'Remove from favorites' : 'Add to favorites'}
             >
-              <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
+              <Heart 
+                size={16} 
+                fill={isBookmarked ? '#f43f5e' : 'none'} 
+                color={isBookmarked ? '#f43f5e' : 'currentColor'} 
+              />
             </button>
             <button 
               type="button" 
@@ -137,6 +149,16 @@ export function JobCard({
             >
               <Scale size={15} />
             </button>
+            {job.isCustomImport && onDeleteCustomJob && (
+              <button
+                type="button"
+                className="btn-icon btn-trash-custom"
+                onClick={() => onDeleteCustomJob(job.id)}
+                title="Delete imported job"
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
             <button 
               type="button" 
               className="btn-details-sm"
@@ -162,7 +184,7 @@ export function JobCard({
 
   // GRID CARD VIEW LAYOUT
   return (
-    <div className={`clean-job-card ${isCompared ? 'is-compared' : ''}`}>
+    <div className={`clean-job-card ${isCompared ? 'is-compared' : ''} ${job.isCustomImport ? 'is-custom-job' : ''}`}>
       {/* 1. Header: Company Logo, Name, Location, Source */}
       <div className="card-header">
         <div className="company-info">
@@ -189,6 +211,12 @@ export function JobCard({
         </div>
 
         <div className="header-badges">
+          {job.isCustomImport && (
+            <span className="custom-import-pill" title="Imported by you">
+              <Sparkles size={11} />
+              <span>Custom Import</span>
+            </span>
+          )}
           <span className="source-pill">{job.sourcePlatform}</span>
           <span className={`scope-pill ${job.scope === 'foreign' ? 'global' : 'th'}`}>
             {job.scope === 'thai' ? '🇹🇭 TH' : '🌏 Global'}
@@ -240,11 +268,15 @@ export function JobCard({
         <div className="action-buttons-left">
           <button 
             type="button" 
-            className={`btn-icon ${isBookmarked ? 'saved' : ''}`}
+            className={`btn-icon btn-fav-icon ${isBookmarked ? 'favorited' : ''}`}
             onClick={() => onToggleBookmark(job)}
-            title={isBookmarked ? 'Remove bookmark' : 'Bookmark job'}
+            title={isBookmarked ? 'Remove from favorites' : 'Add to favorites'}
           >
-            <Bookmark size={15} fill={isBookmarked ? 'currentColor' : 'none'} />
+            <Heart 
+              size={16} 
+              fill={isBookmarked ? '#f43f5e' : 'none'} 
+              color={isBookmarked ? '#f43f5e' : 'currentColor'} 
+            />
           </button>
           <button 
             type="button" 
@@ -254,6 +286,16 @@ export function JobCard({
           >
             <Scale size={15} />
           </button>
+          {job.isCustomImport && onDeleteCustomJob && (
+            <button
+              type="button"
+              className="btn-icon btn-trash-custom"
+              onClick={() => onDeleteCustomJob(job.id)}
+              title="Delete imported job"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
         </div>
 
         <div className="action-buttons-right">
