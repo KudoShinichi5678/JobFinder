@@ -12,6 +12,10 @@ import { AnalyticsModal } from './components/AnalyticsModal';
 import { ImportJobModal } from './components/ImportJobModal';
 import { INITIAL_JOBS } from './data/mockJobs';
 import { 
+  fetchUnifiedLiveJobs, 
+  getCachedLiveJobs 
+} from './services/jobService';
+import { 
   DEFAULT_DESIRED_LOCATION, 
   detectCurrentLocation, 
   getJobLocationInfo 
@@ -53,10 +57,48 @@ export default function App() {
     }
   });
 
-  // Combine custom imported jobs (displayed at top) with built-in feeds
+  // Real-time live fetched jobs from Free APIs + JSearch
+  const [liveJobs, setLiveJobs] = useState(() => {
+    return getCachedLiveJobs() || [];
+  });
+  const [notification, setNotification] = useState(null);
+
+  const showToast = (message, type = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3200);
+  };
+
+  // Background fetch live jobs on initial mount if cache is empty
+  useEffect(() => {
+    const cached = getCachedLiveJobs();
+    if (!cached || cached.length === 0) {
+      fetchUnifiedLiveJobs()
+        .then(res => {
+          if (res?.jobs?.length) {
+            setLiveJobs(res.jobs);
+            showToast(`⚡ Loaded ${res.jobs.length} real-time remote jobs from Remotive & Jobicy!`, 'info');
+          }
+        })
+        .catch(e => {
+          console.warn('Initial live jobs fetch skipped:', e);
+        });
+    }
+  }, []);
+
+  // Combine custom imported jobs + live feeds + built-in feeds (with deduplication)
   const jobs = useMemo(() => {
-    return [...customJobs, ...INITIAL_JOBS];
-  }, [customJobs]);
+    const combined = [...customJobs, ...liveJobs, ...INITIAL_JOBS];
+    const seen = new Set();
+    const result = [];
+    for (const job of combined) {
+      const signature = `${(job.title || '').toLowerCase().trim()}___${(job.company || '').toLowerCase().trim()}`;
+      if (!seen.has(signature)) {
+        seen.add(signature);
+        result.push(job);
+      }
+    }
+    return result;
+  }, [customJobs, liveJobs]);
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -97,7 +139,6 @@ export default function App() {
   // Compared Jobs state (max 3)
   const [compareJobs, setCompareJobs] = useState([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [notification, setNotification] = useState(null);
 
   // Save bookmarks to localStorage
   useEffect(() => {
@@ -128,11 +169,6 @@ export default function App() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const showToast = (message, type = 'info') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3200);
-  };
 
   // Determine Location by GPS
   const handleDetectCurrentGPS = async () => {
@@ -389,8 +425,13 @@ export default function App() {
     };
   }, [jobs, filters, sortBy, desiredLocation, showOnlyFavorites, savedJobs]);
 
-  const handleSyncComplete = () => {
-    showToast('Feeds synced! Positions refreshed.', 'success');
+  const handleSyncComplete = (newLiveJobs) => {
+    if (newLiveJobs && newLiveJobs.length > 0) {
+      setLiveJobs(newLiveJobs);
+      showToast(`🎉 Feeds synced! ${newLiveJobs.length} real-time positions active.`, 'success');
+    } else {
+      showToast('Feeds synced! Positions refreshed.', 'success');
+    }
   };
 
   return (
@@ -417,6 +458,7 @@ export default function App() {
         totalJobsCount={jobs.length}
         filteredCount={displayedJobs.length}
         onOpenImport={() => setIsImportModalOpen(true)}
+        liveJobsCount={liveJobs.length}
       />
 
       {/* Main Content Area */}
@@ -651,6 +693,7 @@ export default function App() {
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}
         onSyncComplete={handleSyncComplete}
+        currentLiveCount={liveJobs.length}
       />
 
       <ComparisonDrawer 

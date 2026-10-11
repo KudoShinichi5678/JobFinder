@@ -22,7 +22,8 @@ export function Header({
   onOpenLocationModal,
   totalJobsCount,
   filteredCount,
-  onOpenImport
+  onOpenImport,
+  liveJobsCount = 0
 }) {
   const isGps = desiredLocation?.type === 'current';
 
@@ -73,13 +74,18 @@ export function Header({
           {/* Live Sync / Refresh button */}
           <button 
             type="button"
-            className="btn btn-header-action"
+            className="btn btn-header-action btn-header-sync"
             onClick={onOpenSync}
             disabled={isSyncing}
-            title="Check for new jobs"
+            title="Hybrid Live Aggregator Settings & Sync"
           >
             <RefreshCw size={15} className={isSyncing ? 'spinning' : ''} />
             <span className="btn-label">{isSyncing ? 'Updating...' : 'Sync Feeds'}</span>
+            {liveJobsCount > 0 && (
+              <span className="header-live-badge-chip" title={`${liveJobsCount} live positions loaded`}>
+                {liveJobsCount} live
+              </span>
+            )}
           </button>
 
           {/* Market Trends */}

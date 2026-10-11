@@ -83,6 +83,12 @@ export function JobCard({
               <h3 className="job-list-title" onClick={() => onSelectJob(job)}>
                 {job.title}
               </h3>
+              {job.isLiveFeed && (
+                <span className="list-live-badge" title={`Real-time API feed: ${job.sourceName || 'Live'}`}>
+                  <span className="live-pulse-dot"></span>
+                  Live
+                </span>
+              )}
               {job.isCustomImport && (
                 <span className="list-custom-badge" title="Imported by you">
                   ✨ Custom Import
@@ -211,6 +217,12 @@ export function JobCard({
         </div>
 
         <div className="header-badges">
+          {job.isLiveFeed && (
+            <span className="live-feed-pill" title={`Real-time API Feed: ${job.sourceName || 'Live'}`}>
+              <span className="live-pulse-dot"></span>
+              <span>Live</span>
+            </span>
+          )}
           {job.isCustomImport && (
             <span className="custom-import-pill" title="Imported by you">
               <Sparkles size={11} />
